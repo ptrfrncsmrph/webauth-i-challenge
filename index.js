@@ -12,7 +12,7 @@ server.use(helmet())
 server.use(express.json())
 server.use(cors())
 
-server.get("/", (req, res) => {
+server.get("/", (_req, res) => {
   res.send("It's alive!")
 })
 
@@ -48,34 +48,29 @@ server.post("/api/login", (req, res) => {
     })
 })
 
-server.get("/api/users", (req, res) => {
-  let { username, password } = req.headers
-  Users.findBy({ username })
-    .first()
-    .then(user => {
-      if (user && bcrypt.compareSync(password, user.password)) {
-        Users.find()
-          .then(users => {
-            res.json(users)
-          })
-          .catch(err => res.send(err))
-      } else {
-        res.status(401).json({ message: "Invalid Credentials" })
-      }
+server.get("/api/users", readUserFrom("headers"), (_req, res) => {
+  Users.find()
+    .then(users => {
+      res.json(users)
     })
+    .catch(err => res.send(err))
 })
 
-// function restricted(req, res, next) {
-//   let { username, password } = req.headers
-//   Users.findBy({ username })
-//     .first()
-//     .then(user => {
-//       if (user && bcrypt.compareSync(password, user.password)) {
-//         next();
-//     .catch(() => {
-// // null
-//     })
-// }
+function readUserFrom(prop) {
+  return function restricted(req, res, next) {
+    let { username, password } = req[prop]
+    Users.findBy({ username })
+      .first()
+      .then(user => {
+        if (user && bcrypt.compareSync(password, user.password)) {
+          next()
+        }
+      })
+      .catch(() => {
+        res.send(500).json({ message: "Something went wrong!" })
+      })
+  }
+}
 
 function only(username) {
   return (req, res, next) => {
